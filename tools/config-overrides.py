@@ -40,15 +40,23 @@ def main():
     printer_cfg = 'printer.cfg' == os.path.basename(args.original)
     moonraker_conf = 'moonraker.conf' == os.path.basename(args.original)
     fan_control = 'fan_control.cfg' == os.path.basename(args.original)
+    # only support new sections for rpi webcam.conf
+    webcam_conf = 'webcam.conf' == os.path.basename(args.original) and '/usr/data/printer_data/config/webcam.conf' not in args.updated
+    crowsnest_conf = 'crowsnest.conf' == os.path.basename(args.original)
 
     deleted_sections = []
     for section_name in original.sections():
         if section_name not in updated.sections() and (printer_cfg or fan_control):
             deleted_sections.append(section_name)
 
-    # as a safety mechanism refuse to delete both static_digital_output mcu_fan_always_on and controller_fan mcu
-    if fan_control and 'static_digital_output mcu_fan_always_on' in deleted_sections and 'controller_fan mcu' in deleted_sections:
-        deleted_sections.remove('static_digital_output mcu_fan_always_on')
+    if fan_control:
+        # as a safety mechanism refuse to delete both static_digital_output mcu_fan_always_on and controller_fan mcu
+        if 'static_digital_output mcu_fan_always_on' in deleted_sections and 'controller_fan mcu' in deleted_sections:
+            deleted_sections.remove('static_digital_output mcu_fan_always_on')
+
+        # as a safety mechanism refuse to delete both static_digital_output nozzle_mcu_fan_always_on and heater_fan hotend
+        if 'static_digital_output nozzle_mcu_fan_always_on' in deleted_sections and 'heater_fan hotend' in deleted_sections:
+            deleted_sections.remove('static_digital_output nozzle_mcu_fan_always_on')
 
     # only support deleting sections from printer.cfg or fan_control.cfg for now
     for section_name in deleted_sections:
@@ -67,9 +75,9 @@ def main():
         if (exclude_sections and section_name in exclude_sections) or (include_sections and section_name not in include_sections):
             continue
 
-        # so for printer.cfg, moonraker.conf or fan_control a new section can be saved, but it can't be a gcode macro
+        # so for printer.cfg, moonraker.conf, fan_control.cfg or webcam.conf a new section can be saved, but it can't be a gcode macro
         # and we are ignoring a new scanner section in config overrides due to migrating to cartotouch.cfg
-        if section_name != 'scanner' and 'gcode_macro' not in section_name and (printer_cfg or moonraker_conf or fan_control):
+        if section_name != 'scanner' and 'gcode_macro' not in section_name and (printer_cfg or moonraker_conf or fan_control or webcam_conf or crowsnest_conf):
             if section_name not in original.sections():
                 new_section = updated.get_section(section_name, None)
                 if len(overrides.sections()) > 0:
